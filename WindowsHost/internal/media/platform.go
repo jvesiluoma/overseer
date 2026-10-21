@@ -31,9 +31,12 @@ type Display interface {
 	Release()
 }
 
-// Source is the FFmpeg input side: global arguments (hardware devices) and a filter chain that
-// produces raw frames of the display.
+// Source is the FFmpeg input side: global arguments (hardware devices), optional input arguments
+// (an input device such as gdigrab) and a filter chain that produces raw frames of the display.
+// Without InputArgs the filter must be a source filter (ddagrab, testsrc2); with them it
+// processes the input and may be empty.
 type Source struct {
 	GlobalArgs []string
+	InputArgs  []string
 	Filter     string
 }

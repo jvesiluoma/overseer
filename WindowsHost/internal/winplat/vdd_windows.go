@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 	"unicode/utf16"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
@@ -21,11 +22,19 @@ const vddPipe = `\\.\pipe\MTTVirtualDisplayPipe`
 // ErrNoVirtualDisplayDriver means the driver is not installed (or not running).
 var ErrNoVirtualDisplayDriver = errors.New("the Virtual Display Driver is not installed")
 
-// VDDInstalled reports whether the driver's control pipe exists.
-func VDDInstalled() bool {
+var procWaitNamedPipeW = windows.NewLazySystemDLL("kernel32.dll").NewProc("WaitNamedPipeW")
+
+// vddPipeExists reports whether the driver's control pipe exists (busy counts as existing).
+func vddPipeExists() bool {
 	name, _ := windows.UTF16PtrFromString(vddPipe)
-	attrs, err := windows.GetFileAttributes(name)
-	return err == nil && attrs != windows.INVALID_FILE_ATTRIBUTES
+	r, _, err := procWaitNamedPipeW.Call(uintptr(unsafe.Pointer(name)), 1)
+	return r != 0 || errors.Is(err, windows.ERROR_SEM_TIMEOUT)
+}
+
+// VDDInstalled reports whether the driver is present: its control pipe exists, or it has
+// monitors (driver versions differ in how they expose the pipe).
+func VDDInstalled() bool {
+	return vddPipeExists() || len(VirtualMonitors()) > 0
 }
 
 func vddCommand(command string) error {

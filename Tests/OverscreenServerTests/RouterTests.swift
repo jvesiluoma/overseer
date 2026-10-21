@@ -124,7 +124,10 @@ final class RouterTests: XCTestCase {
     func testEmbeddedAssetsMatchSources() throws {
         let webClient = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().appendingPathComponent("WebClient")
-        let names = try FileManager.default.contentsOfDirectory(atPath: webClient.path).filter { !$0.hasPrefix(".") }
+        // Same extensions as scripts/embed-webclient.py (embed.go is the Windows host's embedding).
+        let served: Set<String> = ["html", "js", "css", "svg"]
+        let names = try FileManager.default.contentsOfDirectory(atPath: webClient.path)
+            .filter { !$0.hasPrefix(".") && served.contains(URL(fileURLWithPath: $0).pathExtension) }
         XCTAssertEqual(Set(names), Set(WebAssets.files.keys), "run scripts/embed-webclient.py")
         for name in names {
             let source = try String(contentsOf: webClient.appendingPathComponent(name), encoding: .utf8)

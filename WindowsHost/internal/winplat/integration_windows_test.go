@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 	"unsafe"
@@ -36,7 +37,15 @@ func grabFrame(t *testing.T, d media.Display) (int, int) {
 	src := d.Source(30)
 	out := filepath.Join(t.TempDir(), "frame.png")
 	args := append([]string{"-hide_banner", "-loglevel", "error"}, src.GlobalArgs...)
-	args = append(args, "-filter_complex", src.Filter+"[v]", "-map", "[v]", "-frames:v", "1", "-y", out)
+	args = append(args, src.InputArgs...)
+	if src.Filter != "" {
+		chain := src.Filter + "[v]"
+		if len(src.InputArgs) > 0 {
+			chain = "[0:v]" + chain
+		}
+		args = append(args, "-filter_complex", chain, "-map", "[v]")
+	}
+	args = append(args, "-frames:v", "1", "-y", out)
 	cmd := exec.Command(ffmpegPath(t), args...)
 	if b, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("ffmpeg %v: %v\n%s", args, err, b)
@@ -70,7 +79,17 @@ func TestListMonitors(t *testing.T) {
 			t.Logf("  duplication adapter=%d output=%d err=%v", a, o, err)
 		}
 	}
-	t.Logf("virtual display driver installed: %v", VDDInstalled())
+	t.Logf("virtual display driver installed: %v (pipe %v)", VDDInstalled(), vddPipeExists())
+	if entries, err := os.ReadDir(`\\.\pipe\`); err == nil {
+		for _, e := range entries {
+			if n := e.Name(); strings.Contains(strings.ToLower(n), "mtt") || strings.Contains(strings.ToLower(n), "virtual") {
+				t.Logf("  pipe %s", n)
+			}
+		}
+	}
+	for adapter := 0; adapter < 3; adapter++ {
+		t.Logf("  Direct3D 11 on adapter %d: %v", adapter, d3d11Available(adapter))
+	}
 }
 
 func TestMirrorPrimary(t *testing.T) {

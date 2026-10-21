@@ -151,10 +151,17 @@ func (p *Pipeline) Start(src Source, width, height, fps, bitrate int) error {
 		return err
 	}
 	port := conn.LocalAddr().(*net.UDPAddr).Port
-	filter := fmt.Sprintf("%s,scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv,format=%s[v]",
-		src.Filter, width, height, p.encoder.PixFmt)
+	filter := fmt.Sprintf("scale=w=%d:h=%d:flags=bicubic:out_color_matrix=bt709:out_range=tv,format=%s[v]",
+		width, height, p.encoder.PixFmt)
+	if src.Filter != "" {
+		filter = src.Filter + "," + filter
+	}
 	args := []string{"-hide_banner", "-loglevel", "error", "-nostdin"}
 	args = append(args, src.GlobalArgs...)
+	if len(src.InputArgs) > 0 {
+		args = append(args, src.InputArgs...)
+		filter = "[0:v]" + filter
+	}
 	args = append(args, "-filter_complex", filter, "-map", "[v]")
 	args = append(args, p.encoder.Args(fps, bitrate)...)
 	args = append(args, "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",

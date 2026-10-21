@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/jvesiluoma/overseer/WindowsHost/internal/media"
@@ -40,7 +42,7 @@ func (p *Platform) AcquireDisplay(d settings.Display, s settings.Settings, width
 		return &mirrorDisplay{name: m.Name}, nil
 	}
 	if !VDDInstalled() {
-		return nil, fmt.Errorf("%w; install it (winget install VirtualDrivers.Virtual-Display-Driver) or switch to Mirror mode", ErrNoVirtualDisplayDriver)
+		return nil, fmt.Errorf("%w; install it with its Virtual Driver Control app, or switch to Mirror mode", ErrNoVirtualDisplayDriver)
 	}
 	p.mu.Lock()
 	p.inUse[d.ID] = true
@@ -226,14 +228,48 @@ func (d *mirrorDisplay) Source(fps int) media.Source { return duplicationSource(
 func (d *mirrorDisplay) Release() {}
 
 // duplicationSource grabs a monitor with Desktop Duplication (FFmpeg ddagrab) on the GPU that
-// drives it, then copies frames to system memory for scaling and encoding.
+// drives it, then copies frames to system memory for scaling and encoding. Where Direct3D 11 is
+// not available on that adapter (virtual machines, some remote sessions) it falls back to GDI
+// capture of the monitor's rectangle, which is slower but works everywhere.
 func duplicationSource(monitor string, fps int) media.Source {
 	adapter, output, err := DuplicationOutput(monitor)
 	if err != nil {
 		log.Printf("overscreen: %v; trying the first output", err)
 	}
-	return media.Source{
-		GlobalArgs: []string{"-init_hw_device", fmt.Sprintf("d3d11va=dd:%d", adapter), "-filter_hw_device", "dd"},
-		Filter:     fmt.Sprintf("ddagrab=output_idx=%d:framerate=%d:draw_mouse=1:dup_frames=1,hwdownload,format=bgra", output, fps),
+	if d3d11Available(adapter) {
+		return media.Source{
+			GlobalArgs: []string{"-init_hw_device", fmt.Sprintf("d3d11va=dd:%d", adapter), "-filter_hw_device", "dd"},
+			Filter:     fmt.Sprintf("ddagrab=output_idx=%d:framerate=%d:draw_mouse=1:dup_frames=1,hwdownload,format=bgra", output, fps),
+		}
 	}
+	m, _ := MonitorNamed(monitor)
+	b := m.Bounds
+	return media.Source{InputArgs: []string{"-f", "gdigrab", "-framerate", fmt.Sprint(fps), "-draw_mouse", "1",
+		"-offset_x", fmt.Sprint(b.X), "-offset_y", fmt.Sprint(b.Y), "-video_size", fmt.Sprintf("%dx%d", b.Width, b.Height), "-i", "desktop"}}
+}
+
+var (
+	d3dMu    sync.Mutex
+	d3dCache = map[int]bool{}
+)
+
+// d3d11Available asks FFmpeg once per adapter whether it can open a Direct3D 11 device there.
+func d3d11Available(adapter int) bool {
+	d3dMu.Lock()
+	defer d3dMu.Unlock()
+	if ok, known := d3dCache[adapter]; known {
+		return ok
+	}
+	ok := false
+	if ffmpeg, err := media.FFmpegPath(); err == nil {
+		cmd := exec.Command(ffmpeg, "-hide_banner", "-loglevel", "error", "-init_hw_device", fmt.Sprintf("d3d11va=probe:%d", adapter),
+			"-f", "lavfi", "-i", "nullsrc=s=64x64", "-frames:v", "1", "-f", "null", "-")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: 0x08000000}
+		ok = cmd.Run() == nil
+		if !ok {
+			log.Printf("overscreen: no Direct3D 11 on adapter %d; using GDI capture", adapter)
+		}
+	}
+	d3dCache[adapter] = ok
+	return ok
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
+	"slices"
 	"sync"
 	"syscall"
 	"time"
@@ -169,14 +170,15 @@ func (d *virtualDisplay) Resize(width, height int) (bool, error) {
 			d.mu.Lock()
 			id := d.id
 			d.mu.Unlock()
-			monitors := waitForVirtualMonitors(id+1, 10*time.Second)
-			if id < len(monitors) {
-				if m, err := ensureVirtualMonitor(id, id+1); err == nil {
-					d.mu.Lock()
-					d.name = m.Name
-					d.mu.Unlock()
-					name = m.Name
-				}
+			// The reload is asynchronous: the old monitors linger for a moment, then come back
+			// at the driver's default size. Wait until ours offers the new size.
+			if m, ok := waitForVirtualMode(id, width, height, 15*time.Second); ok {
+				d.mu.Lock()
+				d.name = m.Name
+				d.mu.Unlock()
+				name = m.Name
+			} else {
+				log.Printf("overscreen: %dx%d did not appear after reloading the virtual display driver", width, height)
 			}
 			if t, ok := bestMode(modes(name), width, height); ok {
 				target = t
@@ -190,7 +192,34 @@ func (d *virtualDisplay) Resize(width, height int) (bool, error) {
 	if err := setMode(name, target); err != nil {
 		return false, err
 	}
-	return true, nil
+	for deadline := time.Now().Add(3 * time.Second); ; time.Sleep(100 * time.Millisecond) {
+		b := d.monitor().Bounds
+		if b.Width == target.width && b.Height == target.height {
+			return true, nil
+		}
+		if time.Now().After(deadline) {
+			return true, fmt.Errorf("%s stayed at %dx%d instead of %dx%d", name, b.Width, b.Height, target.width, target.height)
+		}
+	}
+}
+
+// waitForVirtualMode waits until virtual monitor `index` exists, offers width x height and is
+// attached to the desktop.
+func waitForVirtualMode(index, width, height int, timeout time.Duration) (Monitor, bool) {
+	for deadline := time.Now().Add(timeout); time.Now().Before(deadline); time.Sleep(200 * time.Millisecond) {
+		monitors := VirtualMonitors()
+		if index >= len(monitors) || !hasSize(modes(monitors[index].Name), width, height) {
+			continue
+		}
+		if m, err := ensureVirtualMonitor(index, index+1); err == nil {
+			return m, true
+		}
+	}
+	return Monitor{}, false
+}
+
+func hasSize(available []mode, width, height int) bool {
+	return slices.ContainsFunc(available, func(m mode) bool { return m.width == width && m.height == height })
 }
 
 func (d *virtualDisplay) Source(fps int) media.Source {

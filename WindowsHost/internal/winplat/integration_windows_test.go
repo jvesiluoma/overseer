@@ -141,7 +141,7 @@ func TestVirtualDisplayLifecycle(t *testing.T) {
 	w, h = d.Size()
 	t.Logf("resize to 1280x800: changed=%v err=%v now %dx%d", changed, err, w, h)
 	if err != nil || w != 1280 || h != 800 {
-		t.Errorf("resize: %v, %dx%d", err, w, h)
+		t.Errorf("resize: %v, %dx%d; modes: %v", err, w, h, modes(d.(*virtualDisplay).monitor().Name))
 	}
 	if gw, gh := grabFrame(t, d); gw != w || gh != h {
 		t.Errorf("captured %dx%d after resize", gw, gh)

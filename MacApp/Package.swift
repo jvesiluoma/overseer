@@ -1,7 +1,12 @@
 // swift-tools-version:5.9
 // macOS app: virtual display, ScreenCaptureKit capture, libwebrtc streaming, CGEvent input, menu bar UI.
 // Build the .app with ../scripts/build-app.sh (needs Xcode 15+ on macOS 14+).
+import Foundation
 import PackageDescription
+
+// SwiftPM names a path dependency after its folder, so the core package's name is whatever the
+// checkout is called ("overseer" for a plain git clone).
+let core = URL(fileURLWithPath: Context.packageDirectory).deletingLastPathComponent().lastPathComponent.lowercased()
 
 let package = Package(
     name: "OverscreenMac",
@@ -21,8 +26,8 @@ let package = Package(
             name: "OverscreenMac",
             dependencies: [
                 "CVirtualDisplay",
-                .product(name: "OverscreenCore", package: "overscreen"),
-                .product(name: "OverscreenServer", package: "overscreen"),
+                .product(name: "OverscreenCore", package: core),
+                .product(name: "OverscreenServer", package: core),
                 .product(name: "WebRTC", package: "WebRTC"),
             ],
             linkerSettings: [
@@ -38,8 +43,8 @@ let package = Package(
             name: "OverscreenApp",
             dependencies: [
                 "OverscreenMac",
-                .product(name: "OverscreenCore", package: "overscreen"),
-                .product(name: "OverscreenServer", package: "overscreen"),
+                .product(name: "OverscreenCore", package: core),
+                .product(name: "OverscreenServer", package: core),
             ]
         ),
     ]

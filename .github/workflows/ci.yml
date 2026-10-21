@@ -47,7 +47,7 @@ jobs:
           cd Tests/browser && npm ci && CHROME=$(command -v google-chrome) node stream.cjs ../../build/go/overscreen-devserver
 
   macos:
-    runs-on: macos-15
+    runs-on: macos-26   # Xcode 26: the pinned Swift packages need a newer toolchain than macos-15 has
     steps:
       - uses: actions/checkout@v5
       - name: Core tests

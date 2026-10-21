@@ -18,11 +18,11 @@ jobs:
       NEFCON_URL: https://github.com/nefarius/nefcon/releases/download/v1.14.0/nefcon_v1.14.0.zip
       NEFCON_SHA256: a15557da24a9efca203158de3b43b0eaf982db231f0194031f1ed428bc13e669
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 

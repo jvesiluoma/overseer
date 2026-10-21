@@ -61,3 +61,28 @@ func TestEncoderArgsAreLowLatency(t *testing.T) {
 		}
 	}
 }
+
+func TestHoldIgnoresExitUntilUnhold(t *testing.T) {
+	ffmpeg, err := FFmpegPath()
+	if err != nil {
+		t.Skip("ffmpeg not installed")
+	}
+	p := NewPipeline(ffmpeg, Encoder{Name: "libx264", PixFmt: "yuv420p", args: func(int, int) []string { return nil }}, func(*rtp.Packet) error { return nil })
+	exits := make(chan error, 1)
+	p.OnExit = func(err error) { exits <- err }
+	// A source that ends after a few frames stands in for a capture killed by a driver reload.
+	if err := p.Start(Source{Filter: "testsrc2=size=320x240:rate=30,trim=end_frame=3"}, 320, 240, 30, 1_000_000); err != nil {
+		t.Fatal(err)
+	}
+	p.Hold()
+	time.Sleep(1500 * time.Millisecond)
+	select {
+	case err := <-exits:
+		t.Fatalf("exit reported while held: %v", err)
+	default:
+	}
+	if p.Unhold() {
+		t.Fatal("Unhold should report that FFmpeg exited")
+	}
+	p.Stop()
+}

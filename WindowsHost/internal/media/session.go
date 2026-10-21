@@ -248,13 +248,15 @@ func (s *session) resize(viewport protocol.Viewport) {
 	if display == nil || closed {
 		return
 	}
+	if pipeline != nil {
+		pipeline.Hold()
+	}
 	changed, err := display.Resize(w, h)
 	if err != nil {
 		s.delegate.Send(protocol.Error("resize_failed", err.Error()))
-		return
 	}
-	if !changed {
-		return
+	if !changed && (pipeline == nil || pipeline.Unhold()) {
+		return // same size, and the capture (if any) is still running
 	}
 	bw, bh := display.Size()
 	ew, eh := fitEven(bw, bh)
@@ -264,11 +266,12 @@ func (s *session) resize(viewport protocol.Viewport) {
 		s.mapper.Bounds = display.Bounds()
 	}
 	s.mu.Unlock()
-	if pipeline != nil {
-		if err := pipeline.Start(display.Source(s.req.Settings.FPS), ew, eh, s.req.Settings.FPS, s.bitrate(ew, eh)); err != nil {
-			s.end(fmt.Sprintf("capture_failed: %v", err))
-			return
-		}
+	if pipeline == nil {
+		return // not streaming yet; startStreaming uses the new size
+	}
+	if err := pipeline.Start(display.Source(s.req.Settings.FPS), ew, eh, s.req.Settings.FPS, s.bitrate(ew, eh)); err != nil {
+		s.end(fmt.Sprintf("capture_failed: %v", err))
+		return
 	}
 	s.delegate.Send(protocol.Status("streaming", ew, eh))
 }

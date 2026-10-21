@@ -132,6 +132,8 @@ type Pipeline struct {
 	conn    *net.UDPConn
 	stderr  *tailBuffer
 	stopped bool
+	held    bool // exits are expected (the display is being changed); see Hold
+	exited  bool // the current FFmpeg run has ended
 	gen     int
 	rw      rewriter
 	// OnExit is called when FFmpeg exits on its own (not via Stop/Restart), with its last output.
@@ -169,7 +171,7 @@ func (p *Pipeline) Start(src Source, width, height, fps, bitrate int) error {
 
 	p.mu.Lock()
 	old, oldConn := p.cmd, p.conn
-	p.cmd, p.conn, p.stderr, p.stopped = cmd, conn, stderr, false
+	p.cmd, p.conn, p.stderr, p.stopped, p.held, p.exited = cmd, conn, stderr, false, false, false
 	p.gen++
 	gen := p.gen
 	p.rw.restart()
@@ -180,7 +182,10 @@ func (p *Pipeline) Start(src Source, width, height, fps, bitrate int) error {
 	go func() {
 		err := cmd.Wait()
 		p.mu.Lock()
-		current := p.gen == gen && !p.stopped
+		current := p.gen == gen && !p.stopped && !p.held
+		if p.gen == gen {
+			p.exited = true
+		}
 		p.mu.Unlock()
 		if current && p.OnExit != nil {
 			if msg := strings.TrimSpace(stderr.String()); msg != "" {
@@ -217,6 +222,23 @@ func (p *Pipeline) forward(conn *net.UDPConn, gen int) {
 			return
 		}
 	}
+}
+
+// Hold makes an FFmpeg exit expected until the next Start or Unhold: changing the display (for
+// example reloading the virtual display driver) can end the capture under it.
+func (p *Pipeline) Hold() {
+	p.mu.Lock()
+	p.held = true
+	p.mu.Unlock()
+}
+
+// Unhold ends a Hold without restarting. It reports false if FFmpeg exited meanwhile, in which
+// case the caller should Start again.
+func (p *Pipeline) Unhold() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.held = false
+	return !p.exited
 }
 
 func (p *Pipeline) Stop() {

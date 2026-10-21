@@ -21,6 +21,29 @@ jobs:
       - name: Web tests (gestures + end-to-end against the dev server)
         run: swift build --product overscreen-devserver && node --test Tests/web/*.test.cjs
 
+  go:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Vet (Linux and Windows builds)
+        run: go vet ./... && GOOS=windows go vet ./... && GOOS=windows go vet -tags integration ./...
+      - name: Go tests
+        run: go test -race ./WindowsHost/...
+      - name: Protocol tests against the Go server
+        run: |
+          go build -o build/go/overscreen-devserver ./WindowsHost/cmd/overscreen-devserver
+          OVERSCREEN_DEVSERVER=$PWD/build/go/overscreen-devserver node --test Tests/web/*.test.cjs
+      - name: Browser streaming test (FFmpeg test pattern → Chrome over WebRTC)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          cd Tests/browser && npm ci && CHROME=$(command -v google-chrome) node stream.cjs ../../build/go/overscreen-devserver
+
   macos:
     runs-on: macos-15
     steps:

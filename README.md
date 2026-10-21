@@ -1,8 +1,8 @@
 # Overscreen
 
-Turn any browser into an extra display for your Mac: a car's browser, an iPad, an Android
-tablet or an old laptop. Overscreen creates a real virtual monitor on macOS and streams it over
-WebRTC on your local network. Touch input on the device controls the Mac.
+Turn any browser into an extra display for your Mac or Windows PC: a car's browser, an iPad, an
+Android tablet or an old laptop. Overscreen creates a real virtual monitor and streams it over
+WebRTC on your local network. Touch input on the device controls the computer.
 
 - **No app on the device.** You open `https://<your-mac>` and enter the pairing code.
 - **Local only and encrypted.** No account, cloud relay or telemetry. The page, pairing and
@@ -11,9 +11,9 @@ WebRTC on your local network. Touch input on the device controls the Mac.
   double-click, two-finger scroll and right-click are supported.
 - **Up to 4 displays,** each sized to the device that connects (or a fixed size, optionally HiDPI).
 
-> Status: early development (v0.1). The cross-platform core (protocol, pairing, server, web
-> client) is tested on Linux CI. The macOS layer (virtual display, capture, WebRTC, input, UI) is
-> new and needs testing on real hardware. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+> Status: early development. The macOS app works on macOS 26 (Apple silicon). The Windows app is
+> a **preview**: its streaming path is tested with Chrome on CI and on Windows build machines, but
+> not yet on many real PCs. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Requirements
 
@@ -24,7 +24,7 @@ WebRTC on your local network. Touch input on the device controls the Mac.
 
 ## Download
 
-Get `Overscreen-<version>-macOS.dmg` or `.zip` from the
+**Mac:** get `Overscreen-<version>-macOS.dmg` or `.zip` from the
 [releases page](https://github.com/jvesiluoma/overseer/releases). There is no installer: open the
 disk image and run Overscreen from it, or drag it to Applications. From the zip, unzip and
 double-click. The app lives in the menu bar, not the Dock.
@@ -33,6 +33,17 @@ The builds are not notarized by Apple yet, so the first launch is blocked with "
 verify…". Open **System Settings → Privacy & Security**, scroll down and click **Open Anyway**
 (or run `xattr -dr com.apple.quarantine /path/to/Overscreen.app`). Check the download against
 `SHA256SUMS` from the same release first.
+
+**Windows 10/11:** get `Overscreen-<version>-Windows-x64.zip` (or `-arm64`), unzip it anywhere
+and run `Overscreen.exe`. Nothing is installed. SmartScreen warns about the unsigned app the
+first time ("More info" → "Run anyway"), and the firewall asks to allow it on private networks.
+The status page opens with the address, QR code and pairing code; afterwards use the tray icon.
+- **Mirror main screen** works out of the box.
+- **Extend** (a separate virtual monitor) needs the free, signed
+  [Virtual Display Driver](https://github.com/VirtualDrivers/Virtual-Display-Driver), installed
+  once: open its "Virtual Driver Control" app and click Install. Windows cannot create a monitor
+  without a driver, and this one is open source (MIT) and signed. Overscreen switches the
+  virtual monitor on only while a device is connected.
 
 ## Build
 
@@ -57,7 +68,10 @@ For distribution, set `SIGN_IDENTITY="Developer ID Application: …"` and notari
 
 ## Using it in a car
 
-The car's browser has to reach the Mac directly. Two setups need no extra software or root access:
+The car's browser has to reach the computer directly. On **Windows**, plug the phone in by USB
+with USB tethering on, then turn on Settings → Network & internet → **Mobile hotspot** sharing
+that connection; the car joins it and opens `https://192.168.137.1`. On the **Mac**, two setups
+need no extra software or root access:
 
 - **Phone by USB (most reliable).** Connect the phone to the Mac and turn on USB tethering (on an
   iPhone, Personal Hotspot). In System Settings → General → Sharing → Internet Sharing, share the
@@ -74,12 +88,12 @@ see the checklist in [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Develop
 
-The repository holds two Swift packages:
-
 | Path | What | Platforms |
 |---|---|---|
 | `/` (`Package.swift`) | `OverscreenCore` (protocol, pairing, input mapping, display-mode maths) and `OverscreenServer` (SwiftNIO HTTP/WebSocket server, embedded web client), plus `overscreen-devserver` | macOS, Linux |
 | `MacApp/` | `CVirtualDisplay` (ObjC shim), `OverscreenMac` (virtual display, ScreenCaptureKit, libwebrtc, CGEvent), `OverscreenApp` (SwiftUI menu bar) | macOS |
+| `WindowsHost/` (Go, `go.mod` at the root) | The Windows host: server and pairing (same protocol), Pion WebRTC, FFmpeg capture/encoding, Virtual Display Driver control, SendInput, tray app; plus a Go `overscreen-devserver` | Windows (most packages build and test on any OS) |
+| `WebClient/` | The browser client, shared by both hosts | any browser |
 
 ```sh
 swift test                                   # core + server unit tests
@@ -91,6 +105,19 @@ swift run overscreen-devserver --port 8080   # real server and web client with a
 The web client lives in `WebClient/`. After editing it, run `python3 -I scripts/embed-webclient.py`
 (a test fails if you forget).
 
+Windows host:
+
+```sh
+go test ./WindowsHost/...
+go build -o build/go/overscreen-devserver ./WindowsHost/cmd/overscreen-devserver
+OVERSCREEN_DEVSERVER=build/go/overscreen-devserver node --test Tests/web/*.test.cjs   # same protocol tests
+(cd Tests/browser && npm ci && node stream.cjs ../../build/go/overscreen-devserver)     # Chrome + WebRTC + FFmpeg test pattern
+VERSION=0.2.0 scripts/package-windows.sh                                                # → dist/Overscreen-*-Windows-*.zip
+```
+
+On Windows, `overscreen-devserver --media native [--mirror]` streams the real display, and
+`go test -tags integration ./WindowsHost/internal/winplat` exercises the display APIs.
+
 Docs: [`docs/PROTOCOL.md`](docs/PROTOCOL.md), [`docs/SECURITY.md`](docs/SECURITY.md).
 
 ## Clean-room note
@@ -101,4 +128,6 @@ from any commercial product.
 ## License
 
 GNU Affero General Public License v3.0 (see [`LICENSE`](LICENSE)). libwebrtc (BSD-3-Clause),
-SwiftNIO and swift-crypto (Apache-2.0) keep their own licences.
+SwiftNIO and swift-crypto (Apache-2.0), Pion (MIT), fyne systray (Apache-2.0) and go-qrcode (MIT)
+keep their own licences. The Windows download ships FFmpeg (GPL v3, from BtbN/FFmpeg-Builds) as
+a separate program next to the app.

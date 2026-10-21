@@ -1,0 +1,11 @@
+{
+  "name": "overscreen-browser-tests",
+  "private": true,
+  "description": "Real-browser streaming test: Chrome receives video from the Go host over WebRTC.",
+  "scripts": {
+    "test": "node stream.cjs"
+  },
+  "dependencies": {
+    "puppeteer-core": "24.10.0"
+  }
+}

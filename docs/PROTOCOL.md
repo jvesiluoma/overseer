@@ -71,6 +71,10 @@ Host → client:
 Signaling messages are capped at 64 KiB.
 
 ## Media
+The Windows host offers only H.264 Constrained Baseline (`42e01f`), encoded by FFmpeg with an
+IDR at least every 2 s; it does not adapt the bitrate to congestion yet. Its `/host` page is a
+status page for the PC's own browser, served to loopback clients only.
+
 - **Video:** one send-only video track. H.264 Constrained Baseline (`42e01f`, VideoToolbox through
   libwebrtc) is offered first, with VP8 as a fallback.
   - Degradation preference is *maintain resolution*.

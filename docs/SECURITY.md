@@ -16,6 +16,22 @@ like a remote-desktop server.
 | Local privilege escalation | **No privileged helper, no root code and no shell scripts.** The app runs as the user with the hardened runtime, without library-validation exemptions or debugger entitlements. (The planned hotspot mode will add a helper. Its rules are in `PLAN` M4: typed XPC commands, code-signing requirements on both sides, and no `/tmp`.) |
 | Phoning home | None. No telemetry, update check, licence server or cloud signaling. |
 
+## Windows host
+
+The Windows host implements the same protocol and defences (pairing, lockout, Host/Origin checks,
+TLS with a self-signed certificate kept in `%APPDATA%\Overscreen`, no CORS, fixed asset table),
+and is covered by the same protocol tests. Differences:
+
+- **No privileged code.** It runs as the user. Extend mode uses the Virtual Display Driver, which
+  the user installs separately; its control pipe is open to every local user by the driver's
+  design, and Overscreen only sends it `SETDISPLAYCOUNT` and `RELOAD_DRIVER`. To offer the
+  browser's exact size, Overscreen appends a resolution to the driver's `vdd_settings.xml`.
+- **FFmpeg** runs as a child process and sends RTP to a loopback UDP port; packets from other
+  addresses are dropped.
+- **Status page** (`/host`, with the pairing code) is served only to loopback clients.
+- **Input** cannot reach elevated windows (UIPI), and the secure desktop (UAC, lock screen) is not
+  captured.
+
 ## Known limitations
 
 - **Self-signed certificate.** Browsers warn on first visit, and the protection depends on the

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +28,8 @@ func TestLoadOrCreateIsStableAndRenews(t *testing.T) {
 	if err != nil || c.Fingerprint == a.Fingerprint {
 		t.Fatalf("not renewed near expiry: %v", err)
 	}
-	if info, err := os.Stat(filepath.Join(dir, keyFile)); err != nil || info.Mode().Perm() != 0o600 {
+	// Windows has no Unix permission bits (the key relies on the per-user %APPDATA% ACL there).
+	if info, err := os.Stat(filepath.Join(dir, keyFile)); err != nil || (runtime.GOOS != "windows" && info.Mode().Perm() != 0o600) {
 		t.Fatalf("key permissions: %v %v", info.Mode(), err)
 	}
 }

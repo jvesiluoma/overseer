@@ -27,7 +27,8 @@ jobs:
           node-version: 22
 
       - name: Unit tests
-        run: go test ./WindowsHost/...
+        shell: bash
+        run: scripts/ci-run.sh "Go unit tests (Windows)" go test ./WindowsHost/...
 
       - name: Build
         run: |
@@ -74,16 +75,20 @@ jobs:
           Get-ChildItem \\.\pipe\ | Where-Object Name -like '*Virtual*' | Format-Table Name
 
       - name: Display integration tests
-        run: go test -tags integration -v -count=1 ./WindowsHost/internal/winplat
+        if: always()
+        shell: bash
+        run: scripts/ci-run.sh "Display integration tests" go test -tags integration -v -count=1 ./WindowsHost/internal/winplat
 
       - name: Browser streaming test (virtual display)
         if: always()
         working-directory: Tests/browser
+        shell: bash
         run: |
           npm ci
-          node stream.cjs ../../build/go/overscreen-devserver.exe --media native
+          ../../scripts/ci-run.sh "Browser test (virtual display)" node stream.cjs ../../build/go/overscreen-devserver.exe --media native
 
       - name: Browser streaming test (mirror main screen)
         if: always()
         working-directory: Tests/browser
-        run: node stream.cjs ../../build/go/overscreen-devserver.exe --media native --mirror
+        shell: bash
+        run: ../../scripts/ci-run.sh "Browser test (mirror)" node stream.cjs ../../build/go/overscreen-devserver.exe --media native --mirror

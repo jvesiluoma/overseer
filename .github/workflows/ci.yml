@@ -19,7 +19,7 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"  # the container runs as root
           python3 -I scripts/embed-webclient.py && git diff --exit-code
       - name: Swift tests
-        run: swift test
+        run: scripts/ci-run.sh "Swift tests (Linux)" swift test
       - name: Web tests (gestures + end-to-end against the dev server)
         run: swift build --product overscreen-devserver && node --test Tests/web/*.test.cjs
 
@@ -51,9 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Core tests
-        run: swift test
+        run: scripts/ci-run.sh "Swift tests (macOS)" swift test
       - name: Build app
-        run: scripts/build-app.sh
+        run: scripts/ci-run.sh "Build app" scripts/build-app.sh
       - uses: actions/upload-artifact@v5
         with:
           name: Overscreen.app

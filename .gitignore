@@ -1,0 +1,9 @@
+.build/
+MacApp/.build/
+build/
+*.xcodeproj/
+.swiftpm/
+DerivedData/
+.DS_Store
+node_modules/
+dist/

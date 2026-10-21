@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Overscreen</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main id="setup" class="setup">
+    <header class="brand">
+      <div class="logo" aria-hidden="true"></div>
+      <div>
+        <h1>Overscreen</h1>
+        <p id="host-name" class="muted">Connecting…</p>
+      </div>
+    </header>
+
+    <p id="insecure" class="warning" role="alert" hidden>This connection is not encrypted. Others on this network could watch or take over the session.</p>
+
+    <section id="pair" class="card" hidden>
+      <h2>Enter pairing code</h2>
+      <p class="muted">The code is shown in the Overscreen menu on your Mac.</p>
+      <div id="code-display" class="code" aria-live="polite"></div>
+      <div id="keypad" class="keypad"></div>
+      <p id="pair-error" class="error" role="alert"></p>
+    </section>
+
+    <section id="pick" class="card" hidden>
+      <h2>Choose a display</h2>
+      <div id="display-list" class="display-list"></div>
+      <button id="forget" class="link" type="button">Forget this device</button>
+    </section>
+
+    <p id="setup-error" class="error" role="alert"></p>
+  </main>
+
+  <div id="stage" class="stage" hidden>
+    <video id="video" autoplay playsinline muted disablepictureinpicture disableremoteplayback></video>
+    <div id="overlay" class="overlay">
+      <div class="spinner" aria-hidden="true"></div>
+      <p id="overlay-text">Starting…</p>
+      <button id="overlay-action" type="button" hidden></button>
+    </div>
+    <button id="handle" class="handle" type="button" aria-label="Menu"></button>
+    <nav id="menu" class="menu" hidden>
+      <button id="menu-fullscreen" type="button">Full screen</button>
+      <button id="menu-stats" type="button">Show stats</button>
+      <button id="menu-disconnect" type="button">Disconnect</button>
+    </nav>
+    <pre id="hud" class="hud" hidden></pre>
+  </div>
+
+  <script src="gestures.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

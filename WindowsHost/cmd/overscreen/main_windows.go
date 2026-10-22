@@ -23,13 +23,20 @@ import (
 // version is set at build time: -ldflags "-X main.version=0.2.0".
 var version = "dev"
 
-const vddHelp = `<p>Extend mode adds a virtual monitor through the free, signed
-<a href="https://github.com/VirtualDrivers/Virtual-Display-Driver">Virtual Display Driver</a>. Install it once:</p>
-<ol><li>Get the <b>Virtual Driver Control</b> app from the driver's
-<a href="https://github.com/VirtualDrivers/Virtual-Display-Driver/releases">releases page</a>, or run
-<code>winget install --id=VirtualDrivers.Virtual-Display-Driver -e</code>.</li>
-<li>Open it and click <b>Install</b> (administrator rights needed), then restart Overscreen.</li></ol>
-<p>Until then, choose <b>Mirror main screen</b> in the tray menu: it streams your existing screen and needs no driver.</p>`
+const vddHelp = `<p>Extend mode adds a separate virtual monitor, and Windows needs a display driver
+for that. Overscreen uses the free, open-source and signed
+<a href="https://github.com/VirtualDrivers/Virtual-Display-Driver">Virtual Display Driver</a>.
+Until it is installed, devices that connect are turned away.</p>
+<ol><li>Get the driver's <b>Virtual Driver Control</b> app from its
+<a href="https://github.com/VirtualDrivers/Virtual-Display-Driver/releases">releases page</a>, or open
+Command Prompt and run <code>winget install --id=VirtualDrivers.Virtual-Display-Driver -e</code>.</li>
+<li>Open <b>Virtual Driver Control</b> and click <b>Install</b>. Windows asks for administrator rights.</li>
+<li>Installed already? Open <b>Device Manager → Display adapters</b>, right-click
+<b>Virtual Display Driver</b> and choose <b>Enable device</b>.</li></ol>
+<p>Overscreen notices the driver within a few seconds; there is no need to restart it. Then tap
+<b>Reconnect</b> on the device.</p>
+<p class="muted">Rather not install a driver? Choose <b>Mirror main screen</b> in the Overscreen tray
+menu. It streams your existing screen instead of adding a new one.</p>`
 
 func main() {
 	winplat.EnablePerMonitorDPIAwareness()
@@ -55,7 +62,7 @@ func main() {
 }
 
 type menu struct {
-	status, code, clients                *systray.MenuItem
+	status, code, clients, setup         *systray.MenuItem
 	openStatus                           *systray.MenuItem
 	extend, mirror                       *systray.MenuItem
 	allowInput, requirePairing, insecure *systray.MenuItem
@@ -74,6 +81,8 @@ func onReady(a *app.App, platform *winplat.Platform) {
 	m.code.Disable()
 	m.clients = systray.AddMenuItem("Nobody connected", "")
 	m.clients.Disable()
+	m.setup = systray.AddMenuItem("⚠ Extend needs a driver: show setup steps…", "Extend mode needs the Virtual Display Driver")
+	m.setup.Hide()
 	m.openStatus = systray.AddMenuItem("Show address and QR code…", "Opens the status page in your browser")
 	systray.AddSeparator()
 	s := a.Settings()
@@ -88,9 +97,7 @@ func onReady(a *app.App, platform *winplat.Platform) {
 	systray.AddSeparator()
 	m.quit = systray.AddMenuItem("Quit Overscreen", "")
 
-	if !winplat.VDDInstalled() {
-		a.SetExtendHelp(vddHelp)
-	}
+	checkDriver(a)
 	updates := make(chan struct{}, 1)
 	a.OnChange = func() {
 		select {
@@ -114,9 +121,20 @@ func onReady(a *app.App, platform *winplat.Platform) {
 		}
 		for range time.Tick(2 * time.Second) {
 			a.Refresh()
+			checkDriver(a)
 		}
 	}()
 	go m.loop(a, platform)
+}
+
+// checkDriver shows or clears the driver setup help, so installing (or enabling) the Virtual
+// Display Driver takes effect without a restart.
+func checkDriver(a *app.App) {
+	if winplat.VDDInstalled() {
+		a.SetExtendHelp("")
+	} else {
+		a.SetExtendHelp(vddHelp)
+	}
 }
 
 func (m *menu) refresh(a *app.App) {
@@ -154,6 +172,12 @@ func (m *menu) refresh(a *app.App) {
 		systray.SetIcon(app.Icon(true))
 		systray.SetTooltip(fmt.Sprintf("Overscreen: %d connected", len(st.Clients)))
 	}
+	if a.ExtendBlocked() {
+		m.setup.Show()
+		systray.SetTooltip("Overscreen: Extend mode needs the Virtual Display Driver")
+	} else {
+		m.setup.Hide()
+	}
 	setChecked(m.extend, st.Settings.Mode == settings.ModeExtend)
 	setChecked(m.mirror, st.Settings.Mode == settings.ModeMirror)
 	setChecked(m.allowInput, st.Settings.AllowInput)
@@ -166,12 +190,13 @@ func (m *menu) loop(a *app.App, platform *winplat.Platform) {
 		select {
 		case <-m.openStatus.ClickedCh:
 			openURL(a.LocalStatusURL())
+		case <-m.setup.ClickedCh:
+			openURL(a.LocalStatusURL())
 		case <-m.extend.ClickedCh:
-			if !winplat.VDDInstalled() {
-				a.SetExtendHelp(vddHelp)
+			a.UpdateSettings(func(s *settings.Settings) { s.Mode = settings.ModeExtend })
+			if checkDriver(a); a.ExtendBlocked() {
 				openURL(a.LocalStatusURL())
 			}
-			a.UpdateSettings(func(s *settings.Settings) { s.Mode = settings.ModeExtend })
 		case <-m.mirror.ClickedCh:
 			a.UpdateSettings(func(s *settings.Settings) { s.Mode = settings.ModeMirror })
 		case <-m.allowInput.ClickedCh:

@@ -66,7 +66,7 @@ Host → client:
 | `candidate` | as above | |
 | `ping` | `id`, `latencyMs` (last measured round trip) | Sent every 2 s. With no `pong` for 10 s the connection closes. |
 | `error` | `code`, `message` | E.g. `bad_message`, `no_such_display`, `resize_failed`. After 5 protocol errors the connection closes. |
-| `bye` | `reason`: `replaced`, `host_stopped`, `revoked`, `timeout`, `ice_failed`, … | |
+| `bye` | `reason`: `replaced`, `host_stopped`, `revoked`, `timeout`, `ice_failed`, `driver_missing` (Windows extend mode without the Virtual Display Driver), … | |
 
 Signaling messages are capped at 64 KiB.
 

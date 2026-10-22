@@ -294,6 +294,9 @@
         this.stopped = true;
         if (msg.reason === 'replaced') showOverlay('Another device is now using this display.', false, 'Reconnect', restartSession);
         else if (msg.reason === 'host_stopped') showOverlay('The host stopped sharing.', false, 'Reconnect', restartSession);
+        else if (msg.reason === 'driver_missing') showOverlay('The computer needs one more thing: Extend mode needs the free Virtual Display Driver.\n\n' +
+          'On the computer, click the Overscreen icon in the notification area and choose "Show setup steps". ' +
+          'Or choose "Mirror main screen" there to share the existing screen without a driver.', false, 'Reconnect', restartSession);
         else showOverlay('Disconnected (' + msg.reason + ').', false, 'Reconnect', restartSession);
         break;
     }

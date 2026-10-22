@@ -57,6 +57,36 @@ func TestStartServesAndListsURLs(t *testing.T) {
 	}
 }
 
+func TestStatusPageLeadsWithDriverSetup(t *testing.T) {
+	a := New(t.TempDir(), "1.2.3", "Test PC")
+	a.NewEngine = func(settings.Settings) (Engine, string, error) { return &fakeEngine{}, "fake", nil }
+	base := 30000 + rand.Intn(20000)
+	a.UpdateSettings(func(s *settings.Settings) {
+		s.HTTPSPort, s.HTTPSFallbackPort, s.Port, s.FallbackPort = base, base+1, base+2, base+3
+	})
+	if err := a.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer a.Stop()
+
+	a.SetExtendHelp("<p>install the driver</p>")
+	page := string(a.statusPage())
+	help, address := strings.Index(page, "install the driver"), strings.Index(page, "Open on the other device")
+	if !a.ExtendBlocked() || help < 0 || help > address {
+		t.Fatalf("driver help missing or below the address (help at %d, address at %d)", help, address)
+	}
+
+	a.UpdateSettings(func(s *settings.Settings) { s.Mode = settings.ModeMirror })
+	if a.ExtendBlocked() || strings.Contains(string(a.statusPage()), "install the driver") {
+		t.Fatal("driver help shown in mirror mode")
+	}
+	a.UpdateSettings(func(s *settings.Settings) { s.Mode = settings.ModeExtend })
+	a.SetExtendHelp("")
+	if a.ExtendBlocked() || strings.Contains(string(a.statusPage()), "install the driver") {
+		t.Fatal("driver help still shown after the driver appeared")
+	}
+}
+
 func TestIcon(t *testing.T) {
 	ico := Icon(true)
 	if !bytes.Equal(ico[:6], []byte{0, 0, 1, 0, 1, 0}) {

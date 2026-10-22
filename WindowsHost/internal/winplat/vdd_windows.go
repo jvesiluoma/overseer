@@ -10,6 +10,7 @@ import (
 	"unicode/utf16"
 	"unsafe"
 
+	"github.com/jvesiluoma/overseer/WindowsHost/internal/media"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
@@ -20,7 +21,7 @@ import (
 const vddPipe = `\\.\pipe\MTTVirtualDisplayPipe`
 
 // ErrNoVirtualDisplayDriver means the driver is not installed (or not running).
-var ErrNoVirtualDisplayDriver = errors.New("the Virtual Display Driver is not installed")
+var ErrNoVirtualDisplayDriver = media.ErrNoVirtualDisplayDriver
 
 var procWaitNamedPipeW = windows.NewLazySystemDLL("kernel32.dll").NewProc("WaitNamedPipeW")
 

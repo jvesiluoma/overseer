@@ -23,6 +23,8 @@ Extend or mirror
   https://github.com/VirtualDrivers/Virtual-Display-Driver/releases (or run
   winget install --id=VirtualDrivers.Virtual-Display-Driver -e), open it and click Install.
   Overscreen switches the virtual display on while a device is connected and off afterwards.
+  Already installed but Overscreen still asks for it? Open Device Manager > Display adapters,
+  right-click "Virtual Display Driver" and choose Enable device. No restart of Overscreen needed.
   The driver's authors advise uninstalling it before major graphics driver updates.
 
 In a car or without Wi-Fi

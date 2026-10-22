@@ -100,9 +100,19 @@ func (a *App) Status() Status {
 // the virtual display driver is missing ("" hides it).
 func (a *App) SetExtendHelp(html string) {
 	a.mu.Lock()
+	same := a.extendHelp == html
 	a.extendHelp = html
 	a.mu.Unlock()
-	a.changed()
+	if !same {
+		a.changed()
+	}
+}
+
+// ExtendBlocked reports whether extend mode is selected but cannot work (see SetExtendHelp).
+func (a *App) ExtendBlocked() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.settings.Mode == settings.ModeExtend && a.extendHelp != ""
 }
 
 func (a *App) Settings() settings.Settings {

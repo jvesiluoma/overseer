@@ -6,9 +6,15 @@
 package media
 
 import (
+	"errors"
+
 	"github.com/jvesiluoma/overseer/WindowsHost/internal/protocol"
 	"github.com/jvesiluoma/overseer/WindowsHost/internal/settings"
 )
+
+// ErrNoVirtualDisplayDriver means extend mode cannot work because the Virtual Display Driver is
+// not installed (or is disabled). Sessions end with bye{reason:"driver_missing"}.
+var ErrNoVirtualDisplayDriver = errors.New("the Virtual Display Driver is not installed")
 
 // Platform provides displays to stream and a way to inject input.
 type Platform interface {

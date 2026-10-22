@@ -34,7 +34,8 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:0 0 8px}
 .row{display:flex;gap:20px;flex-wrap:wrap;align-items:center}
 .qr{width:180px;height:180px;image-rendering:pixelated;background:#fff;border-radius:8px;padding:6px}
 a{color:var(--accent)}code{font-size:13px;word-break:break-all}.warn{color:var(--warn)}
-ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
+ul,ol{margin:6px 0;padding-left:20px}li{margin:3px 0}
+.attention{border:2px solid var(--warn)}.attention h2{color:var(--warn)}
 </style></head><body><main>`)
 	b.WriteString(`<h1>Overscreen</h1><p class="muted">` + esc(a.HostName) + " · version " + esc(a.Version))
 	if st.Encoder != "" {
@@ -48,6 +49,10 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
 	if !st.Running {
 		b.WriteString("</main></body></html>")
 		return []byte(b.String())
+	}
+
+	if st.Settings.Mode == settings.ModeExtend && extendHelp != "" {
+		b.WriteString(`<div class="card attention"><h2>⚠ One step left: install the Virtual Display Driver</h2>` + extendHelp + `</div>`)
 	}
 
 	b.WriteString(`<div class="card"><h2>Open on the other device</h2><div class="row">`)
@@ -89,10 +94,6 @@ ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
 		b.WriteString("</ul>")
 	}
 	b.WriteString("</div>")
-
-	if st.Settings.Mode == settings.ModeExtend && extendHelp != "" {
-		b.WriteString(`<div class="card warn"><h2>Extend mode needs a driver</h2>` + extendHelp + `</div>`)
-	}
 
 	b.WriteString(`<div class="card"><h2>Car or a device without Wi-Fi</h2>`)
 	switch {

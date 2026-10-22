@@ -1,6 +1,7 @@
 package media
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -58,6 +59,10 @@ func (s *session) start() {
 	s.delegate.Send(protocol.Status("preparing", 0, 0))
 	w, h := protocol.ModeFor(&s.req.Viewport, s.req.Display.Width, s.req.Display.Height)
 	display, err := s.engine.platform.AcquireDisplay(s.req.Display, s.req.Settings, w, h)
+	if errors.Is(err, ErrNoVirtualDisplayDriver) {
+		s.end("driver_missing")
+		return
+	}
 	if err != nil {
 		s.end(fmt.Sprintf("display_failed: %v", err))
 		return
